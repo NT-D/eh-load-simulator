@@ -19,15 +19,20 @@ namespace Simulator
             int _numberOfMessages = Int32.Parse(Environment.GetEnvironmentVariable("NumberOfMessages"));
             int _intervalMiliSeconds = Int32.Parse(Environment.GetEnvironmentVariable("IntervalMiliSeconds"));
 
-            await using (var ehClient = new EventHubProducerClient(_connectionString, _eventHubName))
+            var ehClient = new EventHubProducerClient(_connectionString, _eventHubName);
+            try
             {
-                TimerCallback timerDelegate = new TimerCallback(async (Object o) => await SendMessagesToEventHub(ehClient, _numberOfMessages));
-                Timer timer = new Timer(timerDelegate, null, 0, _intervalMiliSeconds);
-                Console.WriteLine("Press enter to stop...");
-                Console.ReadLine();
-                // Stop timer
-                timer.Change(Timeout.Infinite, Timeout.Infinite);
-                timer.Dispose();
+                while (true)
+                {
+                    SendMessagesToEventHub(ehClient, _numberOfMessages);
+                    await Task.Delay(_intervalMiliSeconds);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(ex.InnerException.Message);
+                await ehClient.CloseAsync();
+                await ehClient.DisposeAsync();
             }
         }
 
